@@ -33,15 +33,26 @@ The application is built using **Streamlit** and can be deployed easily on **Str
 ---
 
 ## 📁 Project Structure
-
 caption-generator/
+
 │
+
 ├── streamlit_app.py # Main Streamlit application
+
 ├── requirements.txt # Required Python libraries
+
 ├── README.md # Project documentation
-├── .gitignore # Ignored files
+
+├── .gitignore # Files ignored by Git
+
 │
+
 ├── .streamlit/
+
 │ └── secrets.toml # Gemini API key (not pushed to GitHub)
+
 │
+
 └── venv/ # Virtual environment (ignored)
+
+
