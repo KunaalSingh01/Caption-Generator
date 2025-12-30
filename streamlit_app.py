@@ -65,39 +65,42 @@ processor, model, device = load_model()
 # ---------------- GEMINI ENHANCEMENT FUNCTION ----------------
 def enhance_caption(raw_caption):
     prompt = f"""
-You are an AI assistant.
+You are a creative social media assistant.
 
-Task:
-1. "What I see" → one simple factual sentence.
-2. "Caption for You" → creative, engaging caption with emojis & hashtags.
+STRICT RULES:
+- Do NOT repeat the same caption every time
+- Do NOT reuse the same hashtags
+- Caption must feel unique and natural
+- Avoid generic phrases like "A moment captured beautifully"
 
-Rules:
-- Do NOT repeat the same sentence.
-- Keep factual and creative parts different.
+TASK:
+1. "What I see": one factual sentence.
+2. "Caption for You": creative caption with emojis and 2–4 relevant hashtags.
 
 Image description:
 {raw_caption}
 
-Format exactly as:
+FORMAT EXACTLY AS:
 
 What I see:
-<sentence>
+<one sentence>
 
 Caption for You:
-<caption>
+<creative caption>
 """
 
-    try:
-        response = gemini_model.generate_content(prompt)
-        return response.text.strip()
-    except Exception as e:
-        # Fallback (app should never crash)
+    response = gemini_model.generate_content(prompt)
+
+    if not response or not response.text:
         return f"""What I see:
 {raw_caption}
 
 Caption for You:
-✨ A moment captured beautifully ✨ #AI #CaptionGenerator
+A unique moment captured through AI ✨
 """
+
+    return response.text.strip()
+
 
 # ---------------- FILE UPLOAD ----------------
 st.subheader("📤 Upload an Image")
