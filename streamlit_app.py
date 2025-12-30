@@ -104,7 +104,8 @@ if uploaded_image:
     image = Image.open(uploaded_image).convert("RGB")
 
     st.markdown("### 🖼️ Preview")
-    st.image(image, use_container_width=True)
+    st.image(image, width=500)
+
 
     with st.spinner("🤖 AI is thinking..."):
         inputs = processor(image, return_tensors="pt")
