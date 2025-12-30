@@ -125,7 +125,7 @@ if uploaded_image:
     st.success("✅ Image understood")
 
     # 🔹 RAW CAPTION BACK (CLEARLY SHOWN)
-    st.markdown("### 🔍 What the AI Sees (Raw Caption)")
+    st.markdown("### 🔍 Raw Caption")
     st.code(raw_caption)
 
     with st.spinner("✨ Making it creative with Gemini..."):
