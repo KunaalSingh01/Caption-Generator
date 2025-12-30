@@ -41,18 +41,23 @@ st.markdown("---")
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# ---------------- LOAD BLIP MODEL ----------------
+# ---------------- LOAD BLIP MODEL (FIXED) ----------------
 @st.cache_resource
 def load_model():
     processor = BlipProcessor.from_pretrained(
-        "Salesforce/blip-image-captioning-large"
+        "Salesforce/blip-image-captioning-base"
     )
+
     model = BlipForConditionalGeneration.from_pretrained(
-        "Salesforce/blip-image-captioning-large"
+        "Salesforce/blip-image-captioning-base",
+        torch_dtype=torch.float32
     )
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(device)
+
+    device = torch.device("cpu")  # Streamlit Cloud = CPU only
+    model = model.to(device)
+
     return processor, model, device
+
 
 processor, model, device = load_model()
 
@@ -62,29 +67,32 @@ def enhance_caption(raw_caption):
 You are an AI assistant.
 
 Task:
-1. "What I see" → Describe the image clearly in one simple sentence.
-2. "Caption for user" → Write a creative, engaging caption with emojis and hashtags.
+1. What I see → Describe the image clearly in one simple sentence.
+2. Caption for user → Write a creative, engaging caption with emojis and hashtags.
 
-Do NOT repeat sentences word by word.
-Keep both parts different in style.
+Rules:
+- Do NOT repeat sentences word by word.
+- Keep both parts different in tone and style.
 
 Image description:
 {raw_caption}
 
 Output format:
+
 What I see:
 <description>
 
 Caption for You:
 <creative caption>
 """
+
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=prompt,
         config=types.GenerateContentConfig(temperature=0.9)
     )
-    return response.text.strip()
 
+    return response.text.strip()
 
 # ---------------- FILE UPLOAD ----------------
 st.subheader("📤 Upload an Image")
@@ -98,10 +106,12 @@ if uploaded_image:
     image = Image.open(uploaded_image).convert("RGB")
 
     st.markdown("### 🖼️ Preview")
-    st.image(image, use_column_width=True)
+    st.image(image, use_container_width=True)
 
     with st.spinner("🤖 AI is thinking..."):
-        inputs = processor(image, return_tensors="pt").to(device)
+        inputs = processor(image, return_tensors="pt")
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+
         output = model.generate(**inputs)
         raw_caption = processor.decode(
             output[0], skip_special_tokens=True
@@ -109,7 +119,7 @@ if uploaded_image:
 
     st.success("✅ Caption generated!")
 
-    st.markdown("### 📝 Raw Caption")
+    st.markdown("### 📝 What I See")
     st.code(raw_caption)
 
     with st.spinner("✨ Gemini is adding creativity..."):
@@ -121,7 +131,7 @@ if uploaded_image:
     st.text_area(
         "Copy your caption:",
         final_caption,
-        height=150
+        height=160
     )
 
     st.balloons()

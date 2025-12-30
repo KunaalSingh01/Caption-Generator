@@ -1,7 +1,5 @@
-streamlit
-torch
-torchvision
-transformers
-pillow
-google-genai
-accelerate
+streamlit==1.32.2
+torch==2.1.2
+transformers==4.36.2
+Pillow
+google-generativeai
