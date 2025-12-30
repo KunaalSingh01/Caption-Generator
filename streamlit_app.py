@@ -2,7 +2,8 @@ import streamlit as st
 import torch
 from PIL import Image
 from transformers import BlipProcessor, BlipForConditionalGeneration
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -15,13 +16,13 @@ st.set_page_config(
 st.sidebar.title("📌 How to use")
 st.sidebar.write("""
 1️⃣ Upload an image  
-2️⃣ AI describes what it sees  
+2️⃣ Wait for AI to generate caption  
 3️⃣ Gemini makes it creative ✨  
 4️⃣ Copy & share 🎉  
 """)
 
 st.sidebar.markdown("---")
-st.sidebar.info("⚠️ AI-generated content. For creative use only.")
+st.sidebar.info("⚠️ This is an AI-generated caption.\nFor creative use only.")
 
 # ---------------- MAIN TITLE ----------------
 st.markdown(
@@ -30,77 +31,48 @@ st.markdown(
 )
 
 st.markdown(
-    "<p style='text-align: center;'>From image → meaning → creativity ✨</p>",
+    "<p style='text-align: center;'>Turn your images into <b>smart & creative captions</b> using AI ✨</p>",
     unsafe_allow_html=True
 )
 
 st.markdown("---")
 
-# ---------------- GEMINI SETUP (STABLE) ----------------
+# ---------------- LOAD GEMINI ----------------
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-genai.configure(api_key=GEMINI_API_KEY)
-
-gemini_model = genai.GenerativeModel("gemini-pro")
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 # ---------------- LOAD BLIP MODEL ----------------
 @st.cache_resource
 def load_model():
     processor = BlipProcessor.from_pretrained(
-        "Salesforce/blip-image-captioning-base"
+        "Salesforce/blip-image-captioning-large"
     )
-
     model = BlipForConditionalGeneration.from_pretrained(
-        "Salesforce/blip-image-captioning-base",
-        torch_dtype=torch.float32
+        "Salesforce/blip-image-captioning-large"
     )
-
-    device = torch.device("cpu")  # Streamlit Cloud = CPU only
-    model = model.to(device)
-
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
     return processor, model, device
-
 
 processor, model, device = load_model()
 
-# ---------------- GEMINI ENHANCEMENT FUNCTION ----------------
-def enhance_caption(raw_caption):
+# ---------------- GEMINI FUNCTION ----------------
+def enhance_caption(caption):
     prompt = f"""
-You are a creative social media assistant.
+You are a fun and creative social media caption writer.
 
-STRICT RULES:
-- Do NOT repeat the same caption every time
-- Do NOT reuse the same hashtags
-- Caption must feel unique and natural
-- Avoid generic phrases like "A moment captured beautifully"
+Rules:
+1. First line = image description
+2. Second line = catchy caption with emojis and hashtags
 
-TASK:
-1. "What I see": one factual sentence.
-2. "Caption for You": creative caption with emojis and 2–4 relevant hashtags.
-
-Image description:
-{raw_caption}
-
-FORMAT EXACTLY AS:
-
-What I see:
-<one sentence>
-
-Caption for You:
-<creative caption>
+Description: {caption}
 """
-
-    response = gemini_model.generate_content(prompt)
-
-    if not response or not response.text:
-        return f"""What I see:
-{raw_caption}
-
-Caption for You:
-A unique moment captured through AI ✨
-"""
-
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(temperature=0.9)
+    )
     return response.text.strip()
-
 
 # ---------------- FILE UPLOAD ----------------
 st.subheader("📤 Upload an Image")
@@ -114,36 +86,33 @@ if uploaded_image:
     image = Image.open(uploaded_image).convert("RGB")
 
     st.markdown("### 🖼️ Preview")
-    st.image(image, width=500)
+    st.image(image, use_column_width=True)
 
-    with st.spinner("🤖 Understanding the image..."):
-        inputs = processor(image, return_tensors="pt")
-        inputs = {k: v.to(device) for k, v in inputs.items()}
-
+    with st.spinner("🤖 AI is thinking..."):
+        inputs = processor(image, return_tensors="pt").to(device)
         output = model.generate(**inputs)
         raw_caption = processor.decode(
             output[0], skip_special_tokens=True
         )
 
-    st.success("✅ Image understood")
+    st.success("✅ Caption generated!")
 
-    # 🔹 RAW CAPTION BACK (CLEARLY SHOWN)
-    st.markdown("### 🔍 Raw Caption")
+    st.markdown("### 📝 Raw Caption")
     st.code(raw_caption)
 
-    with st.spinner("✨ Making it creative with Gemini..."):
+    with st.spinner("✨ Gemini is adding creativity..."):
         final_caption = enhance_caption(raw_caption)
 
-    st.success("🎉 Final Caption Ready")
+    st.success("🎉 Done!")
 
     st.markdown("### 🌟 Final AI Caption")
     st.text_area(
         "Copy your caption:",
         final_caption,
-        height=180
+        height=150
     )
 
     st.balloons()
 
 else:
-    st.info("👆 Upload an image to get started")
+    st.info("👆 Upload an image to get started!")
