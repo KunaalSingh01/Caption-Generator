@@ -2,8 +2,8 @@ import streamlit as st
 import torch
 from PIL import Image
 from transformers import BlipProcessor, BlipForConditionalGeneration
-from google import genai
-from google.genai import types
+import google.generativeai as genai
+
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -39,7 +39,9 @@ st.markdown("---")
 
 # ---------------- LOAD GEMINI ----------------
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-client = genai.Client(api_key=GEMINI_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
+model_gemini = genai.GenerativeModel("gemini-1.5-flash")
+
 
 # ---------------- LOAD BLIP MODEL (FIXED) ----------------
 @st.cache_resource
@@ -86,13 +88,9 @@ Caption for You:
 <creative caption>
 """
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(temperature=0.9)
-    )
-
+    response = model_gemini.generate_content(prompt)
     return response.text.strip()
+
 
 # ---------------- FILE UPLOAD ----------------
 st.subheader("📤 Upload an Image")
