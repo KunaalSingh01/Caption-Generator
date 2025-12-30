@@ -4,7 +4,6 @@ from PIL import Image
 from transformers import BlipProcessor, BlipForConditionalGeneration
 import google.generativeai as genai
 
-
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="AI Caption Generator",
@@ -16,13 +15,13 @@ st.set_page_config(
 st.sidebar.title("📌 How to use")
 st.sidebar.write("""
 1️⃣ Upload an image  
-2️⃣ Wait for AI to generate caption  
+2️⃣ AI describes what it sees  
 3️⃣ Gemini makes it creative ✨  
 4️⃣ Copy & share 🎉  
 """)
 
 st.sidebar.markdown("---")
-st.sidebar.info("⚠️ This is an AI-generated caption.\nFor creative use only.")
+st.sidebar.info("⚠️ AI-generated content. For creative use only.")
 
 # ---------------- MAIN TITLE ----------------
 st.markdown(
@@ -31,19 +30,19 @@ st.markdown(
 )
 
 st.markdown(
-    "<p style='text-align: center;'>Turn your images into <b>smart & creative captions</b> using AI ✨</p>",
+    "<p style='text-align: center;'>From image → meaning → creativity ✨</p>",
     unsafe_allow_html=True
 )
 
 st.markdown("---")
 
-# ---------------- LOAD GEMINI ----------------
+# ---------------- GEMINI SETUP (STABLE) ----------------
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=GEMINI_API_KEY)
-model_gemini = genai.GenerativeModel("gemini-1.5-flash")
 
+gemini_model = genai.GenerativeModel("gemini-pro")
 
-# ---------------- LOAD BLIP MODEL (FIXED) ----------------
+# ---------------- LOAD BLIP MODEL ----------------
 @st.cache_resource
 def load_model():
     processor = BlipProcessor.from_pretrained(
@@ -63,34 +62,42 @@ def load_model():
 
 processor, model, device = load_model()
 
-# ---------------- GEMINI FUNCTION ----------------
+# ---------------- GEMINI ENHANCEMENT FUNCTION ----------------
 def enhance_caption(raw_caption):
     prompt = f"""
 You are an AI assistant.
 
 Task:
-1. What I see → Describe the image clearly in one simple sentence.
-2. Caption for user → Write a creative, engaging caption with emojis and hashtags.
+1. "What I see" → one simple factual sentence.
+2. "Caption for You" → creative, engaging caption with emojis & hashtags.
 
 Rules:
-- Do NOT repeat sentences word by word.
-- Keep both parts different in tone and style.
+- Do NOT repeat the same sentence.
+- Keep factual and creative parts different.
 
 Image description:
 {raw_caption}
 
-Output format:
+Format exactly as:
 
 What I see:
-<description>
+<sentence>
 
 Caption for You:
-<creative caption>
+<caption>
 """
 
-    response = model_gemini.generate_content(prompt)
-    return response.text.strip()
+    try:
+        response = gemini_model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        # Fallback (app should never crash)
+        return f"""What I see:
+{raw_caption}
 
+Caption for You:
+✨ A moment captured beautifully ✨ #AI #CaptionGenerator
+"""
 
 # ---------------- FILE UPLOAD ----------------
 st.subheader("📤 Upload an Image")
@@ -106,8 +113,7 @@ if uploaded_image:
     st.markdown("### 🖼️ Preview")
     st.image(image, width=500)
 
-
-    with st.spinner("🤖 AI is thinking..."):
+    with st.spinner("🤖 Understanding the image..."):
         inputs = processor(image, return_tensors="pt")
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
@@ -116,24 +122,25 @@ if uploaded_image:
             output[0], skip_special_tokens=True
         )
 
-    st.success("✅ Caption generated!")
+    st.success("✅ Image understood")
 
-    st.markdown("### 📝 What I See")
+    # 🔹 RAW CAPTION BACK (CLEARLY SHOWN)
+    st.markdown("### 🔍 What the AI Sees (Raw Caption)")
     st.code(raw_caption)
 
-    with st.spinner("✨ Gemini is adding creativity..."):
+    with st.spinner("✨ Making it creative with Gemini..."):
         final_caption = enhance_caption(raw_caption)
 
-    st.success("🎉 Done!")
+    st.success("🎉 Final Caption Ready")
 
     st.markdown("### 🌟 Final AI Caption")
     st.text_area(
         "Copy your caption:",
         final_caption,
-        height=160
+        height=180
     )
 
     st.balloons()
 
 else:
-    st.info("👆 Upload an image to get started!")
+    st.info("👆 Upload an image to get started")
